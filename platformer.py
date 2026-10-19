@@ -135,6 +135,7 @@ class Game:
         self.bat_timer = 120
         self.slash_t = 0
         self.slash_cd = 0
+        self.paused = False
         self.dead = False
         self.death_reason = ""
         self.particles = []
@@ -429,6 +430,26 @@ class Game:
         s.blit(ct, (W - ct.get_width() - 10, 10))
         best = font.render(f"Best: {max(self.high_score, self.coins)}", True, (90, 60, 0))
         s.blit(best, (W - best.get_width() - 10, 38))
+        if self.paused and not self.dead:
+            overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 155))
+            s.blit(overlay, (0, 0))
+            title = pygame.font.SysFont(None, 72).render("PAUSED", True, (255, 255, 255))
+            instruction = font.render("Press Esc again to resume", True, (255, 255, 255))
+            stats = font.render(
+                f"Score: {self.score}   Coins: {self.coins}   Best: {max(self.high_score, self.coins)}   "
+                f"Distance: {int(self.px // TILE)}m",
+                True,
+                (255, 225, 150),
+            )
+            for text, y in ((title, H // 2 - 75), (instruction, H // 2 - 10), (stats, H // 2 + 35)):
+                s.blit(text, (W // 2 - text.get_width() // 2, y))
+        elif not self.dead:
+            pause_hint = font.render("Esc: Pause", True, (255, 255, 255))
+            hint_bg = pygame.Surface((pause_hint.get_width() + 14, pause_hint.get_height() + 8), pygame.SRCALPHA)
+            hint_bg.fill((0, 0, 0, 70))
+            s.blit(hint_bg, (W // 2 - hint_bg.get_width() // 2, 5))
+            s.blit(pause_hint, (W // 2 - pause_hint.get_width() // 2, 9))
         if self.dead:
             ov = pygame.Surface((W, H), pygame.SRCALPHA)
             ov.fill((0, 0, 0, 150))
@@ -456,17 +477,21 @@ def main(max_frames=None):
     frames = 0
     while True:
         jump_pressed = False
+        paused_before_events = g.paused
         for e in pygame.event.get():
-            if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            if e.type == pygame.QUIT:
                 pygame.quit()
                 return
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE and not g.dead:
+                g.paused = not g.paused
             if e.type == pygame.KEYDOWN and e.key == pygame.K_SPACE:
                 jump_pressed = True
             if e.type == pygame.KEYDOWN and e.key == pygame.K_F11:
                 pygame.display.toggle_fullscreen()
             if e.type == pygame.KEYDOWN and e.key == pygame.K_r and g.dead:
                 g.reset()
-        g.update(pygame.key.get_pressed(), jump_pressed)
+        if not g.paused:
+            g.update(pygame.key.get_pressed(), jump_pressed and not paused_before_events)
         g.draw(screen, font)
         pygame.display.flip()
         clock.tick(FPS)
